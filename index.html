@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>化学方程式记忆助手</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/mhchem.min.js"></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFC9',
+            accent: '#722ED1',
+            neutral: '#F5F7FA',
+            dark: '#1D2129',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'card': '0 4px 20px 0 rgba(0, 0, 0, 0.08)',
+            'card-hover': '0 8px 30px 0 rgba(22, 93, 255, 0.15)',
+            'flip-card': '0 8px 32px rgba(22, 93, 255, 0.18)',
+          }
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .transition-custom {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .preserve-3d {
+        transform-style: preserve-3d;
+      }
+      .backface-hidden {
+        backface-visibility: hidden;
+      }
+      .rotate-y-180 {
+        transform: rotateY(180deg);
+      }
+    }
+  </style>
+  
+  <style>
+    /* 基础样式 */
+    body {
+      scroll-behavior: smooth;
+      perspective: 1000px; /* 3D视图透视效果 */
+    }
+    
+    /* 卡片翻转核心样式 */
+    .flip-card-container {
+      perspective: 1500px;
+      height: 500px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .flip-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+      box-shadow: var(--tw-shadow-flip-card);
+      border-radius: 1.25rem;
+    }
+    
+    .flip-card.flipped {
+      transform: rotateY(180deg);
+    }
+    
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 1.25rem;
+      padding: 2.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .card-front {
+      background: linear-gradient(135deg, #165DFF 0%, #722ED1 100%);
+      color: white;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    
+    .card-back {
+      background-color: white;
+      color: #1D2129;
+      transform: rotateY(180deg);
+      overflow-y: auto;
+    }
+    
+    .equation-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .equation-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .katex {
+      font-size: 1.2em !important;
+    }
+    
+    .category-btn.active {
+      background-color: #165DFF;
+      color: white;
+    }
+    
+    .收藏-btn.active {
+      color: #FF4D4F;
+    }
+    
+    /* 响应式调整卡片大小 */
+    @media (max-width: 768px) {
+      .flip-card-container {
+        height: 420px;
+      }
+      
+      .card-front, .card-back {
+        padding: 1.5rem;
+      }
+      
+      .katex {
+        font-size: 1em !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .flip-card-container {
+        height: 380px;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-neutral font-sans text-dark">
+  <!-- 顶部导航栏 -->
+  <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm shadow-sm">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-flask text-primary text-2xl"></i>
+        <h1 class="text-xl md:text-2xl font-bold text-primary">化学方程式记忆助手</h1>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <!-- 新增：模式切换按钮 -->
+        <div class="hidden md:flex items-center space-x-2 bg-white border border-gray-200 rounded-full px-2 py-1">
+          <button id="list-mode-btn" class="mode-btn active px-3 py-1 rounded-full bg-primary text-white transition-custom">
+            <i class="fa fa-th-list"></i>
+            <span class="hidden lg:inline">列表模式</span>
+          </button>
+          <button id="card-mode-btn" class="mode-btn px-3 py-1 rounded-full hover:bg-gray-100 transition-custom">
+            <i class="fa fa-clone"></i>
+            <span class="hidden lg:inline">卡片模式</span>
+          </button>
+        </div>
+        
+        <!-- 移动端模式切换按钮 -->
+        <div class="md:hidden">
+          <button id="mobile-mode-btn" class="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-white border border-gray-200 hover:border-primary hover:text-primary transition-custom">
+            <i class="fa fa-th-list"></i>
+            <span>列表</span>
+          </button>
+        </div>
+        
+        <button id="random-btn" class="hidden md:flex items-center space-x-1 px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-custom">
+          <i class="fa fa-random"></i>
+          <span>随机抽查</span>
+        </button>
+        
+        <button id="favorites-btn" class="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-white border border-gray-200 hover:border-primary hover:text-primary transition-custom">
+          <i class="fa fa-star-o"></i>
+          <span class="hidden sm:inline">我的收藏</span>
+        </button>
+        
+        <div class="relative">
+          <input id="search-input" type="text" placeholder="搜索方程式..." 
+            class="pl-10 pr-4 py-1.5 rounded-full border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 md:w-64 transition-custom">
+          <i class="fa fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 py-8">
+    <!-- 统计卡片 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="bg-white rounded-xl shadow-card p-5 flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl">
+          <i class="fa fa-list-alt"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">总方程式数</p>
+          <p class="text-2xl font-bold" id="total-count">19</p>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl shadow-card p-5 flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary text-xl">
+          <i class="fa fa-tags"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">分类数量</p>
+          <p class="text-2xl font-bold">3</p>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl shadow-card p-5 flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-xl">
+          <i class="fa fa-star"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">已收藏</p>
+          <p class="text-2xl font-bold" id="favorite-count">0</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 分类筛选栏 -->
+    <div class="bg-white rounded-xl shadow-card p-4 mb-8 overflow-x-auto scrollbar-hide" id="category-bar">
+      <div class="flex space-x-2 md:space-x-4 min-w-max">
+        <button class="category-btn active px-4 py-2 rounded-lg transition-custom" data-category="all">
+          全部方程式
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="alkane">
+          甲烷及烷烃
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="ethylene">
+          乙烯
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="benzene">
+          苯及同系物
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="addition">
+          加成反应
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="substitution">
+          取代反应
+        </button>
+        <button class="category-btn px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-custom" data-category="oxidation">
+          氧化反应
+        </button>
+      </div>
+    </div>
+    
+    <!-- 列表模式容器 -->
+    <div id="list-container" class="block">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="equations-container">
+        <!-- 方程式卡片会通过JS动态生成 -->
+      </div>
+      
+      <!-- 空状态提示 -->
+      <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
+        <div class="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+          <i class="fa fa-search text-gray-400 text-4xl"></i>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">未找到相关方程式</h3>
+        <p class="text-gray-500 max-w-md">尝试更换搜索关键词或分类，或者检查是否有拼写错误</p>
+        <button id="reset-filter" class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-custom">
+          重置筛选
+        </button>
+      </div>
+    </div>
+    
+    <!-- 卡片模式容器（默认隐藏） -->
+    <div id="card-container" class="hidden">
+      <div class="mb-8 text-center">
+        <p class="text-gray-500 mb-2">
+          <span id="current-card-index">1</span>/<span id="total-card-count">19</span>
+        </p>
+        <h3 class="text-xl font-semibold text-primary">点击卡片翻转查看详情</h3>
+        <p class="text-gray-500 mt-1">正面：方程式名称 | 反面：反应原理与方程式</p>
+      </div>
+      
+      <!-- 翻转卡片 -->
+      <div class="flip-card-container mb-10">
+        <div class="flip-card" id="main-flip-card">
+          <!-- 卡片正面 -->
+          <div class="card-front">
+            <div class="absolute top-6 left-6 flex flex-wrap gap-2">
+              <!-- 分类标签会动态生成 -->
+            </div>
+            <h2 class="text-2xl md:text-3xl font-bold mb-4" id="card-front-title">甲烷一氯取代</h2>
+            <div class="flex items-center space-x-2 mb-6" id="card-front-difficulty">
+              <span class="px-3 py-1 rounded-full text-sm bg-white/20">简单</span>
+            </div>
+            <p class="text-white/80 text-sm">点击卡片翻转</p>
+            <i class="fa fa-repeat text-white/50 text-2xl mt-4 animate-pulse"></i>
+          </div>
+          
+          <!-- 卡片反面 -->
+          <div class="card-back">
+            <div class="flex justify-between items-start mb-6">
+              <h3 class="text-xl font-bold text-primary" id="card-back-title">甲烷一氯取代</h3>
+              <button class="收藏-btn text-gray-400 hover:text-gray-600 transition-custom" id="card-favorite-btn">
+                <i class="fa fa-star-o text-xl"></i>
+              </button>
+            </div>
+            
+            <div class="bg-neutral rounded-lg p-5 mb-6" id="card-equation">
+              <!-- 方程式会动态渲染 -->
+            </div>
+            
+            <div class="mb-4">
+              <h4 class="text-sm font-semibold text-gray-500 mb-2">反应原理</h4>
+              <p class="text-gray-700" id="card-description">甲烷与氯气在光照条件下发生取代反应，生成一氯甲烷和氯化氢</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-2 mt-auto">
+              <!-- 反应类型标签会动态生成 -->
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 卡片导航按钮 -->
+      <div class="flex justify-center space-x-6">
+        <button id="prev-card" class="flex items-center space-x-2 px-6 py-3 bg-white border border-gray-300 rounded-lg hover:border-primary hover:text-primary transition-custom disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fa fa-arrow-left"></i>
+          <span>上一个</span>
+        </button>
+        <button id="shuffle-card" class="flex items-center space-x-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-custom">
+          <i class="fa fa-random"></i>
+          <span>随机</span>
+        </button>
+        <button id="next-card" class="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-custom disabled:opacity-50 disabled:cursor-not-allowed">
+          <span>下一个</span>
+          <i class="fa fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部信息 -->
+  <footer class="bg-white border-t border-gray-200 py-6 mt-12">
+    <div class="container mx-auto px-4 text-center text-gray-500">
+      <p>© 2025 化学方程式记忆助手 | 让化学学习更高效</p>
+      <div class="flex justify-center space-x-4 mt-3">
+        <a href="#" class="hover:text-primary transition-custom"><i class="fa fa-question-circle"></i> 使用帮助</a>
+        <a href="#" class="hover:text-primary transition-custom"><i class="fa fa-envelope"></i> 反馈建议</a>
+        <a href="#" class="hover:text-primary transition-custom"><i class="fa fa-book"></i> 更多资源</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 随机抽查模态框 -->
+  <div id="quiz-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h3 class="text-xl font-bold text-primary">方程式抽查</h3>
+        <button id="close-quiz" class="text-gray-400 hover:text-gray-600 transition-custom">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="p-6 flex-grow overflow-y-auto">
+        <div class="text-center mb-6">
+          <p class="text-gray-500 mb-2">第 <span id="quiz-current">1</span>/<span id="quiz-total">5</span> 题</p>
+          <h4 class="text-lg font-semibold" id="quiz-question">请写出甲烷与氯气的取代反应方程式</h4>
+        </div>
+        
+        <div class="bg-neutral rounded-lg p-4 mb-6" id="quiz-equation">
+          <!-- 方程式会动态渲染 -->
+        </div>
+        
+        <div class="flex justify-between">
+          <button id="prev-quiz" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-custom">
+            <i class="fa fa-arrow-left mr-1"></i> 上一题
+          </button>
+          <button id="next-quiz" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-custom">
+            下一题 <i class="fa fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 化学方程式数据
+    const equationsData = [
+      {
+        id: 1,
+        name: "甲烷一氯取代",
+        equation: "CH_4 + Cl_2 \\xrightarrow{光照} CH_3Cl + HCl",
+        type: ["alkane", "substitution"],
+        description: "甲烷与氯气在光照条件下发生取代反应，生成一氯甲烷和氯化氢",
+        difficulty: "简单"
+      },
+      {
+        id: 2,
+        name: "甲烷高温分解",
+        equation: "CH_4 \\xrightarrow{高温} C + 2H_2",
+        type: ["alkane", "decomposition"],
+        description: "甲烷在高温条件下分解为碳单质和氢气",
+        difficulty: "中等"
+      },
+      {
+        id: 3,
+        name: "石油气裂化",
+        equation: "C_{16}H_{34} \\xrightarrow[加热、加压]{催化剂} C_8H_{18} + C_8H_{16}",
+        type: ["alkane", "cracking"],
+        description: "十六烷在催化剂、加热加压条件下发生裂化反应，生成辛烷和辛烯",
+        difficulty: "中等"
+      },
+      {
+        id: 4,
+        name: "有机物燃烧通式",
+        equation: "C_{x}H_{y}O_{z} + (x + \\frac{y}{4} - \\frac{z}{2})O_2 \\xrightarrow{点燃} xCO_2 + \\frac{y}{2}H_2O",
+        type: ["alkane", "combustion", "oxidation"],
+        description: "含碳、氢、氧的有机物燃烧通式，适用于大多数有机物的燃烧反应",
+        difficulty: "困难"
+      },
+      {
+        id: 5,
+        name: "乙烯与溴水加成",
+        equation: "CH_2=CH_2 + Br_2 \\rightarrow CH_2Br-CH_2Br",
+        type: ["ethylene", "addition"],
+        description: "乙烯与溴水发生加成反应，溴水褪色，生成1,2-二溴乙烷",
+        difficulty: "简单"
+      },
+      {
+        id: 6,
+        name: "乙烯水化制乙醇",
+        equation: "CH_2=CH_2 + H_2O \\xrightarrow[加热、加压]{催化剂} CH_3CH_2OH",
+        type: ["ethylene", "addition"],
+        description: "乙烯与水在催化剂、加热加压条件下发生加成反应，生成乙醇",
+        difficulty: "中等"
+      },
+      {
+        id: 7,
+        name: "乙烯与溴化氢加成",
+        equation: "CH_2=CH_2 + HBr \\xrightarrow[\Delta]{催化剂} CH_3-CH_2Br",
+        type: ["ethylene", "addition"],
+        description: "乙烯与溴化氢在催化剂和加热条件下发生加成反应，生成溴乙烷",
+        difficulty: "中等"
+      },
+      {
+        id: 8,
+        name: "乙烯加氢还原",
+        equation: "CH_2=CH_2 + H_2 \\xrightarrow[\Delta]{催化剂} CH_3-CH_3",
+        type: ["ethylene", "addition", "reduction"],
+        description: "乙烯与氢气在催化剂和加热条件下发生加成反应，生成乙烷",
+        difficulty: "简单"
+      },
+      {
+        id: 9,
+        name: "1,3-丁二烯1,2-加成",
+        equation: "CH_2=CH-CH=CH_2 + Cl_2 \\rightarrow Cl-CH_2-CH=CH-CH_2-Cl",
+        type: ["ethylene", "addition"],
+        description: "1,3-丁二烯与氯气发生1,2-加成反应，生成1,2-二氯-3-丁烯",
+        difficulty: "困难"
+      },
+      {
+        id: 10,
+        name: "1,3-丁二烯1,4-加成",
+        equation: "CH_2=CH-CH=CH_2 + Cl_2 \\rightarrow Cl-CH_2-CH=CH-CH_2-Cl",
+        type: ["ethylene", "addition"],
+        description: "1,3-丁二烯与氯气发生1,4-加成反应，生成1,4-二氯-2-丁烯",
+        difficulty: "困难"
+      },
+      {
+        id: 11,
+        name: "乙烯加聚反应",
+        equation: "nCH_2=CH_2 \\xrightarrow{催化剂} [-CH_2-CH_2-]_n",
+        type: ["ethylene", "addition", "polymerization"],
+        description: "乙烯在催化剂作用下发生加聚反应，生成聚乙烯",
+        difficulty: "中等"
+      },
+      {
+        id: 12,
+        name: "苯与液溴取代",
+        equation: "\\ce{C6H6 + Br2 ->[FeBr3] C6H5Br + HBr ^}",
+        type: ["benzene", "substitution"],
+        description: "苯与液溴在溴化铁催化下发生取代反应，生成溴苯和溴化氢气体",
+        difficulty: "中等"
+      },
+      {
+        id: 13,
+        name: "苯的硝化反应",
+        equation: "\\ce{C6H6 + HNO3 ->[浓硫酸][\Delta] C6H5NO2 + H2O}",
+        type: ["benzene", "substitution", "nitration"],
+        description: "苯与浓硝酸在浓硫酸催化和加热条件下发生硝化反应，生成硝基苯",
+        difficulty: "困难"
+      },
+      {
+        id: 14,
+        name: "苯的磺化反应",
+        equation: "\\ce{C6H6 + H2SO4 ->[\Delta] C6H5SO3H + H2O}",
+        type: ["benzene", "substitution", "sulfonation"],
+        description: "苯与浓硫酸在加热条件下发生磺化反应，生成苯磺酸",
+        difficulty: "困难"
+      },
+      {
+        id: 15,
+        name: "苯的加氢反应",
+        equation: "\\ce{C6H6 + 3H2 ->[催化剂][\Delta] C6H12}",
+        type: ["benzene", "addition", "reduction"],
+        description: "苯与氢气在催化剂和加热条件下发生加成反应，生成环己烷",
+        difficulty: "中等"
+      },
+      {
+        id: 16,
+        name: "甲苯硝化反应",
+        equation: "\\ce{C6H5-CH3 + 3HNO3 ->[浓硫酸][\Delta] C6H2(NO2)3-CH3 + 3H2O}",
+        type: ["benzene", "substitution", "nitration"],
+        description: "甲苯与浓硝酸在浓硫酸催化和加热条件下发生硝化反应，生成三硝基甲苯（TNT）",
+        difficulty: "困难"
+      },
+      {
+        id: 17,
+        name: "甲苯氧化反应",
+        equation: "\\ce{C6H5-CH3 ->[KMnO4(H+)] C6H5-COOH}",
+        type: ["benzene", "oxidation"],
+        description: "甲苯在酸性高锰酸钾溶液中被氧化，生成苯甲酸",
+        difficulty: "中等"
+      },
+      {
+        id: 18,
+        name: "甲苯苯环溴代",
+        equation: "\\ce{C6H5-CH3 + 3Br2 ->[FeBr3] C6H2Br3-CH3 + 3HBr ^}",
+        type: ["benzene", "substitution"],
+        description: "甲苯与溴在溴化铁催化下发生苯环上的取代反应，生成2,4,6-三溴甲苯",
+        difficulty: "中等"
+      },
+      {
+        id: 19,
+        name: "甲苯甲基溴代",
+        equation: "\\ce{C6H5-CH3 + Br2 ->[光照] C6H5-CH2Br + HBr ^}",
+        type: ["benzene", "substitution"],
+        description: "甲苯与溴在光照条件下发生甲基上的取代反应，生成苄溴",
+        difficulty: "中等"
+      },
+      {
+        id: 20,
+        name: "卤代烃生成醇",
+        equation: "CH_3CH_2Br + NaOH \\xrightarrow[\Delta]{H_2O} CH_3CH_2OH + NaBr",
+        type: ["halide", "substitution", "hydrolysis"],
+        description: "溴乙烷与氢氧化钠在水溶液中加热发生水解反应，生成乙醇和溴化钠",
+        difficulty: "中等"
+      },
+      {
+        id: 21,
+        name: "卤代烃生成烯烃",
+        equation: "CH_3CH_2Br + NaOH \\xrightarrow[\Delta]{醇} CH_2=CH_2 \\uparrow + NaBr + H_2O",
+        type: ["halide", "elimination"],
+        description: "溴乙烷与氢氧化钠在醇溶液中加热发生消去反应，生成乙烯、溴化钠和水",
+        difficulty: "中等"
+      },
+      
+      // 新增方程式 - 醇类相关
+      {
+        id: 22,
+        name: "乙醇和氢溴酸反应",
+        equation: "CH_3CH_2OH + HBr \\xrightarrow[\Delta]{浓硫酸} CH_3CH_2Br + H_2O",
+        type: ["alcohol", "substitution"],
+        description: "乙醇与氢溴酸在浓硫酸催化和加热条件下反应，生成溴乙烷和水",
+        difficulty: "中等"
+      },
+      {
+        id: 23,
+        name: "乙醇和钠反应",
+        equation: "2CH_3CH_2OH + 2Na \\rightarrow 2CH_3CH_2ONa + H_2 \\uparrow",
+        type: ["alcohol", "displacement"],
+        description: "乙醇与金属钠发生置换反应，生成乙醇钠并放出氢气",
+        difficulty: "简单"
+      },
+      {
+        id: 24,
+        name: "乙醇的催化氧化",
+        equation: "2CH_3CH_2OH + O_2 \\xrightarrow[\Delta]{Cu或Ag} 2CH_3CHO + 2H_2O",
+        type: ["alcohol", "oxidation"],
+        description: "乙醇在铜或银催化和加热条件下被氧化，生成乙醛和水",
+        difficulty: "中等"
+      },
+      {
+        id: 25,
+        name: "乙醇的分子内脱水反应",
+        equation: "CH_3CH_2OH \\xrightarrow[170^\circ C]{浓硫酸} CH_2=CH_2 \\uparrow + H_2O",
+        type: ["alcohol", "elimination"],
+        description: "乙醇在浓硫酸催化和170℃条件下发生分子内脱水，生成乙烯和水",
+        difficulty: "中等"
+      },
+      {
+        id: 26,
+        name: "乙醇的分子间脱水反应",
+        equation: "C_2H_5OH + C_2H_5OH \\xrightarrow[140^\circ C]{浓硫酸} C_2H_5OC_2H_5 + H_2O",
+        type: ["alcohol", "substitution"],
+        description: "两分子乙醇在浓硫酸催化和140℃条件下发生分子间脱水，生成乙醚和水",
+        difficulty: "中等"
+      },
+      {
+        id: 27,
+        name: "乙醇与酸的酯化反应",
+        equation: "CH_3COOH + CH_3CH_2OH \\xrightarrow[\Delta]{浓硫酸} CH_3COOCH_2CH_3 + H_2O",
+        type: ["alcohol", "carboxylic", "esterification", "substitution"],
+        description: "乙酸与乙醇在浓硫酸催化和加热条件下发生酯化反应，生成乙酸乙酯和水",
+        difficulty: "中等"
+      },
+      
+      // 新增方程式 - 醛类相关
+      {
+        id: 28,
+        name: "乙醛与氢气的加成",
+        equation: "CH_3CHO + H_2 \\xrightarrow[\Delta]{催化剂} CH_3CH_2OH",
+        type: ["aldehyde", "addition", "reduction"],
+        description: "乙醛与氢气在催化剂和加热条件下发生加成反应（还原反应），生成乙醇",
+        difficulty: "中等"
+      },
+      {
+        id: 29,
+        name: "乙醛的催化氧化",
+        equation: "2CH_3CHO + O_2 \\xrightarrow[\Delta]{催化剂} 2CH_3COOH",
+        type: ["aldehyde", "oxidation"],
+        description: "乙醛在催化剂和加热条件下被氧化，生成乙酸",
+        difficulty: "中等"
+      },
+      {
+        id: 30,
+        name: "乙醛银镜反应",
+        equation: "CH_3CHO + 2Ag(NH_3)_2OH \\xrightarrow[\Delta]{} CH_3COONH_4 + 2Ag \\downarrow + 3NH_3 + H_2O",
+        type: ["aldehyde", "oxidation"],
+        description: "乙醛与银氨溶液在加热条件下发生银镜反应，生成乙酸铵、银单质、氨气和水",
+        difficulty: "困难"
+      },
+      {
+        id: 31,
+        name: "甲醛银镜反应",
+        equation: "HCHO + 4Ag(NH_3)_2OH \\xrightarrow[\Delta]{} (NH_4)_2CO_3 + 4Ag \\downarrow + 6NH_3 + 2H_2O",
+        type: ["aldehyde", "oxidation"],
+        description: "甲醛与银氨溶液在加热条件下发生银镜反应，生成碳酸铵、银单质、氨气和水",
+        difficulty: "困难"
+      },
+      {
+        id: 32,
+        name: "乙醛与新制氢氧化铜的反应",
+        equation: "CH_3CHO + 2Cu(OH)_2 + NaOH \\xrightarrow[\Delta]{} CH_3COONa + Cu_2O \\downarrow + 3H_2O",
+        type: ["aldehyde", "oxidation"],
+        description: "乙醛与新制氢氧化铜在加热条件下反应，生成乙酸钠、氧化亚铜沉淀和水",
+        difficulty: "困难"
+      },
+      {
+        id: 33,
+        name: "甲醛与新制氢氧化铜反应",
+        equation: "HCHO + 4Cu(OH)_2 + 2NaOH \\xrightarrow[\Delta]{} Na_2CO_3 + 2Cu_2O \\downarrow + 6H_2O",
+        type: ["aldehyde", "oxidation"],
+        description: "甲醛与新制氢氧化铜在加热条件下反应，生成碳酸钠、氧化亚铜沉淀和水",
+        difficulty: "困难"
+      },
+      
+      // 新增方程式 - 羧酸相关
+      {
+        id: 34,
+        name: "冰醋酸与金属钠反应",
+        equation: "2CH_3COOH + 2Na \\rightarrow 2CH_3COONa + H_2 \\uparrow",
+        type: ["carboxylic", "displacement"],
+        description: "乙酸与金属钠发生置换反应，生成乙酸钠并放出氢气",
+        difficulty: "简单"
+      },
+      {
+        id: 35,
+        name: "醋酸与纯碱反应",
+        equation: "2CH_3COOH + Na_2CO_3 \\rightarrow 2CH_3COONa + H_2O + CO_2 \\uparrow",
+        type: ["carboxylic", "double-displacement"],
+        description: "乙酸与碳酸钠发生复分解反应，生成乙酸钠、水和二氧化碳气体",
+        difficulty: "中等"
+      },
+      {
+        id: 36,
+        name: "醋酸与小苏打反应",
+        equation: "CH_3COOH + NaHCO_3 \\rightarrow CH_3COONa + H_2O + CO_2 \\uparrow",
+        type: ["carboxylic", "double-displacement"],
+        description: "乙酸与碳酸氢钠发生复分解反应，生成乙酸钠、水和二氧化碳气体",
+        difficulty: "中等"
+      },
+      {
+        id: 37,
+        name: "醋酸与烧碱反应",
+        equation: "CH_3COOH + NaOH \\rightarrow CH_3COONa + H_2O",
+        type: ["carboxylic", "neutralization"],
+        description: "乙酸与氢氧化钠发生中和反应，生成乙酸钠和水",
+        difficulty: "简单"
+      },
+      {
+        id: 38,
+        name: "醋酸与弱碱反应",
+        equation: "2CH_3COOH + Cu(OH)_2 \\rightarrow (CH_3COO)_2Cu + 2H_2O",
+        type: ["carboxylic", "neutralization"],
+        description: "乙酸与氢氧化铜发生中和反应，生成乙酸铜和水",
+        difficulty: "中等"
+      },
+      {
+        id: 39,
+        name: "醋酸与醇的酯化反应",
+        equation: "CH_3COOH + CH_3CH_2OH \\xrightleftharpoons[\Delta]{浓硫酸} CH_3COOCH_2CH_3 + H_2O",
+        type: ["carboxylic", "alcohol", "esterification", "substitution"],
+        description: "乙酸与乙醇在浓硫酸催化和加热条件下发生可逆的酯化反应，生成乙酸乙酯和水",
+        difficulty: "中等"
+      },
+      
+      // 新增方程式 - 酯类相关
+      {
+        id: 40,
+        name: "酯的碱性水解",
+        equation: "CH_3COOCH_2CH_3 + NaOH \\xrightarrow[\Delta]{} CH_3COONa + CH_3CH_2OH",
+        type: ["ester", "hydrolysis", "substitution"],
+        description: "乙酸乙酯在氢氧化钠溶液中加热发生水解反应，生成乙酸钠和乙醇，反应不可逆",
+        difficulty: "中等"
+      },
+      {
+        id: 41,
+        name: "酯的酸性水解",
+        equation: "CH_3COOCH_2CH_3 + H_2O \\xrightleftharpoons[\Delta]{H^+} CH_3COOH + CH_3CH_2OH",
+        type: ["ester", "hydrolysis", "substitution"],
+        description: "乙酸乙酯在水溶液中加热发生水解反应，生成乙酸和乙醇，反应可逆",
+        difficulty: "中等"
+      },
+  {
+    id: 42,
+    name: "酯键的缩聚反应",
+    equation: "nHOCH_2CH_2COOH \\xrightarrow{催化剂} HO-[CH_2CH_2COO]_n-H + (n-1)H_2O",
+    type: ["ester", "condensation", "polymerization"],
+    description: "羟基乙酸在催化剂作用下发生缩聚反应，通过酯键连接形成高分子化合物，同时生成水",
+    difficulty: "困难"
+  },
+  {
+    id: 43,
+    name: "丁二烯的加聚反应",
+    equation: "nCH_2=CH-CH=CH_2 \\xrightarrow{催化剂} [-CH_2-CH=CH-CH_2-]_n",
+    type: ["diene", "addition", "polymerization"],
+    description: "1,3-丁二烯在催化剂作用下发生加聚反应，生成聚丁二烯",
+    difficulty: "中等"
+  },
+  {
+    id: 44,
+    name: "实验室制乙炔",
+    equation: "CaC_2 + 2H_2O \\rightarrow CH\\equiv CH \\uparrow + Ca(OH)_2",
+    type: ["alkyne", "preparation"],
+    description: "碳化钙与水反应生成乙炔气体和氢氧化钙，是实验室制备乙炔的常用方法",
+    difficulty: "中等"
+  },
+  {
+    id: 45,
+    name: "乙炔与溴水1:1加成",
+    equation: "CH\\equiv CH + Br_2 \\rightarrow CHBr=CHBr",
+    type: ["alkyne", "addition"],
+    description: "乙炔与溴水按1:1比例发生加成反应，生成1,2-二溴乙烯",
+    difficulty: "中等"
+  },
+  {
+    id: 46,
+    name: "乙炔与氢气足量加成",
+    equation: "CH\\equiv CH + 2H_2 \\xrightarrow[\Delta]{催化剂} CH_3CH_3",
+    type: ["alkyne", "addition", "reduction"],
+    description: "乙炔与足量氢气在催化剂和加热条件下发生加成反应，完全还原生成乙烷",
+    difficulty: "中等"
+  },
+  {
+    id: 47,
+    name: "乙炔与水1:1加成",
+    equation: "CH\\equiv CH + H_2O \\xrightarrow[\Delta]{催化剂} CH_3CHO",
+    type: ["alkyne", "addition"],
+    description: "乙炔与水在催化剂和加热条件下发生加成反应，生成乙醛",
+    difficulty: "中等"
+  },
+  {
+    id: 48,
+    name: "乙炔与氯化氢加成",
+    equation: "CH\\equiv CH + HCl \\xrightarrow{催化剂} CH_2=CHCl",
+    type: ["alkyne", "addition"],
+    description: "乙炔与氯化氢在催化剂作用下发生加成反应，生成氯乙烯",
+    difficulty: "中等"
+  },
+  {
+    id: 49,
+    name: "乙炔与足量的溴水加成",
+    equation: "CH\\equiv CH + 2Br_2 \\rightarrow CHBr_2-CHBr_2",
+    type: ["alkyne", "addition"],
+    description: "乙炔与足量溴水发生完全加成反应，生成1,1,2,2-四溴乙烷",
+    difficulty: "中等"
+  },
+  {
+    id: 50,
+    name: "乙炔的加聚反应",
+    equation: "nCH\\equiv CH \\xrightarrow{催化剂} [-CH=CH-]_n",
+    type: ["alkyne", "addition", "polymerization"],
+    description: "乙炔在催化剂作用下发生加聚反应，生成聚乙炔",
+    difficulty: "中等"
+  },
+  {
+    id: 51,
+    name: "苯酚与强碱的反应",
+    equation: "\\ce{C6H5OH + NaOH -> C6H5ONa + H2O}",
+    type: ["phenol", "neutralization", "double-displacement"],
+    description: "苯酚与氢氧化钠发生复分解反应，生成苯酚钠和水，可用于除去苯中混有的少量苯酚",
+    difficulty: "简单"
+  },
+  {
+    id: 52,
+    name: "苯酚的电离",
+    equation: "\\ce{C6H5OH + H2O <=> C6H5O^- + H3O^+}",
+    type: ["phenol", "ionization"],
+    description: "苯酚在水中发生微弱电离，显示弱酸性",
+    difficulty: "中等"
+  },
+  {
+    id: 53,
+    name: "苯酚钠与二氧化碳反应",
+    equation: "\\ce{C6H5ONa + H2O + CO2 -> C6H5OH + NaHCO3}",
+    type: ["phenol", "displacement"],
+    description: "苯酚钠与二氧化碳和水反应生成苯酚和碳酸氢钠，说明碳酸酸性强于苯酚",
+    difficulty: "中等"
+  },
+  {
+    id: 54,
+    name: "苯酚与浓溴水的取代反应",
+    equation: "\\ce{C6H5OH + 3Br2 -> C6H2Br3OH + 3HBr}",
+    type: ["phenol", "substitution"],
+    description: "苯酚与浓溴水发生取代反应，生成2,4,6-三溴苯酚白色沉淀和溴化氢",
+    difficulty: "中等"
+  },
+  {
+    id: 55,
+    name: "苯酚与浓硝酸的硝化反应",
+    equation: "\\ce{C6H5OH + 3HNO3 ->[浓硫酸][\Delta] C6H2(NO2)3OH + 3H2O}",
+    type: ["phenol", "nitration", "substitution"],
+    description: "苯酚与浓硝酸在浓硫酸催化和加热条件下发生硝化反应，生成2,4,6-三硝基苯酚",
+    difficulty: "困难"
+  },
+  {
+    id: 56,
+    name: "酚类的显色反应",
+    equation: "酚类 + FeCl_3 \\rightarrow 显紫色",
+    type: ["phenol", "color-reaction"],
+    description: "酚类化合物与氯化铁溶液反应显紫色，可用于检验酚类物质",
+    difficulty: "简单"
+  },
+  {
+    id: 57,
+    name: "苯酚与氢气的加成反应",
+    equation: "\\ce{C6H5OH + 3H2 ->[催化剂][\Delta] C6H11OH}",
+    type: ["phenol", "addition", "reduction"],
+    description: "苯酚与氢气在催化剂和加热条件下发生加成反应，生成环己醇",
+    difficulty: "中等"
+  },
+  {
+    id: 58,
+    name: "苯酚的缩聚反应",
+    equation: "n\\ce{C6H5OH} + nHCHO \\xrightarrow[\\Delta]{催化剂} [-\\ce{C6H4}-CH2-]_n + nH2O",
+    type: ["phenol", "condensation", "polymerization"],
+    description: "苯酚与甲醛在催化剂和加热条件下发生缩聚反应，生成酚醛树脂和水",
+    difficulty: "困难"
+  },
+  {
+    id: 59,
+    name: "葡萄糖发酵成醇",
+    equation: "C_6H_{12}O_6 \\xrightarrow{酒化酶} 2C_2H_5OH + 2CO_2 \\uparrow",
+    type: ["carbohydrate", "fermentation"],
+    description: "葡萄糖在酒化酶作用下发酵生成乙醇和二氧化碳",
+    difficulty: "中等"
+  },
+  
+  // 新增方程式（第4页）
+  {
+    id: 60,
+    name: "二糖蔗糖的水解",
+    equation: "C_{12}H_{22}O_{11} + H_2O \\xrightarrow{酸或酶} C_6H_{12}O_6 + C_6H_{12}O_6",
+    type: ["carbohydrate", "disaccharide", "hydrolysis"],
+    description: "蔗糖在酸或酶催化下水解，生成一分子葡萄糖和一分子果糖",
+    difficulty: "中等"
+  },
+  {
+    id: 61,
+    name: "二糖麦芽糖的水解",
+    equation: "C_{12}H_{22}O_{11} + H_2O \\xrightarrow{酸或酶} 2C_6H_{12}O_6",
+    type: ["carbohydrate", "disaccharide", "hydrolysis"],
+    description: "麦芽糖在酸或酶催化下水解，生成两分子葡萄糖",
+    difficulty: "中等"
+  },
+  {
+    id: 62,
+    name: "多糖淀粉的水解",
+    equation: "(C_6H_{10}O_5)_n + nH_2O \\xrightarrow{酸或酶} nC_6H_{12}O_6",
+    type: ["carbohydrate", "polysaccharide", "hydrolysis"],
+    description: "淀粉在酸或酶催化下水解，最终生成葡萄糖",
+    difficulty: "中等"
+  },
+  {
+    id: 63,
+    name: "多糖纤维素的水解",
+    equation: "(C_6H_{10}O_5)_n + nH_2O \\xrightarrow[\Delta]{催化剂} nC_6H_{12}O_6",
+    type: ["carbohydrate", "polysaccharide", "hydrolysis"],
+    description: "纤维素在催化剂和加热条件下水解，生成葡萄糖",
+    difficulty: "中等"
+  },
+  {
+    id: 64,
+    name: "植物油的硬化反应",
+    equation: "植物油 + 3H_2 \\xrightarrow[\Delta]{催化剂} 硬化油",
+    type: ["lipid", "hydrogenation", "addition"],
+    description: "植物油（不饱和脂肪酸甘油酯）与氢气在催化剂和加热条件下发生加成反应，生成硬化油（饱和脂肪酸甘油酯）",
+    difficulty: "中等"
+  },
+  {
+    id: 65,
+    name: "油脂的水解反应（皂化反应）",
+    equation: "油脂 + 3NaOH \\xrightarrow[\Delta]{} 甘油 + 3高级脂肪酸钠",
+    type: ["lipid", "hydrolysis", "saponification"],
+    description: "油脂在氢氧化钠溶液中加热发生水解反应，生成甘油和高级脂肪酸钠（肥皂的主要成分）",
+    difficulty: "中等"
+  },
+  {
+    id: 66,
+    name: "乙二醇与乙二酸的聚合反应",
+    equation: "nHOCH_2CH_2OH + nHOOCCOOH \\xrightarrow[\Delta]{浓硫酸} [-OCH_2CH_2OOCCO-]_n + 2nH_2O",
+    type: ["polymerization", "condensation", "esterification"],
+    description: "乙二醇与乙二酸在浓硫酸催化和加热条件下发生缩聚反应，生成聚酯和水",
+    difficulty: "困难"
+  },
+  {
+    id: 67,
+    name: "胺类电离方程式",
+    equation: "RNH_2 + H_2O \\rightleftharpoons RNH_3^+ + OH^-",
+    type: ["amine", "ionization"],
+    description: "胺类化合物在水中发生微弱电离，显碱性",
+    difficulty: "中等"
+  },
+  {
+    id: 68,
+    name: "苯胺与盐酸反应",
+    equation: "\\ce{C6H5NH2 + HCl -> C6H5NH3Cl}",
+    type: ["amine", "neutralization"],
+    description: "苯胺与盐酸反应生成苯胺盐酸盐",
+    difficulty: "中等"
+  },
+  {
+    id: 69,
+    name: "酰胺在酸性条件下水解",
+    equation: "RCONH_2 + H_2O + HCl \\xrightarrow[\Delta]{} RCOOH + NH_4Cl",
+    type: ["amide", "hydrolysis", "substitution"],
+    description: "酰胺在酸性（盐酸）条件下加热水解，生成羧酸和氯化铵",
+    difficulty: "中等"
+  },
+  {
+    id: 70,
+    name: "酰胺在碱性条件下水解",
+    equation: "RCONH_2 + NaOH \\xrightarrow[\Delta]{} RCOONa + NH_3 \\uparrow",
+    type: ["amide", "hydrolysis", "substitution"],
+    description: "酰胺在碱性（氢氧化钠）条件下加热水解，生成羧酸盐和氨气",
+    difficulty: "中等"
+  },
+  {
+    id: 71,
+    name: "甘氨酸与盐酸的反应",
+    equation: "H_2NCH_2COOH + HCl \\rightarrow ClH_3NCH_2COOH",
+    type: ["amino-acid", "neutralization"],
+    description: "甘氨酸中的氨基与盐酸发生中和反应，生成甘氨酸盐酸盐",
+    difficulty: "中等"
+  },
+  {
+    id: 72,
+    name: "甘氨酸与氢氧化钠的反应",
+    equation: "H_2NCH_2COOH + NaOH \\rightarrow H_2NCH_2COONa + H_2O",
+    type: ["amino-acid", "neutralization"],
+    description: "甘氨酸中的羧基与氢氧化钠发生中和反应，生成甘氨酸钠和水",
+    difficulty: "中等"
+  },
+  {
+    id: 73,
+    name: "两个氨基酸分子缩合脱水",
+    equation: "H_2N-CH(R)-COOH + H_2N-CH(R')-COOH \\rightarrow H_2N-CH(R)-CONH-CH(R')-COOH + H_2O",
+    type: ["amino-acid", "condensation", "peptide-formation"],
+    description: "两个氨基酸分子通过氨基和羧基之间的缩合反应形成二肽，同时脱去一分子水",
+    difficulty: "困难"
+  },
+  {
+    id: 74,
+    name: "蛋白质水解原理",
+    equation: "蛋白质 + nH_2O \\xrightarrow{酶或酸} 多种氨基酸",
+    type: ["protein", "hydrolysis"],
+    description: "蛋白质在酶或酸的作用下水解，最终生成多种氨基酸",
+    difficulty: "中等"
+  }
+];
+
+    // 全局变量
+    let favoriteEquations = new Set();
+    let currentCategory = "all";
+    let searchQuery = "";
+    let currentQuizIndex = 0;
+    let quizEquations = [];
+    let currentMode = "list"; // 当前模式：list/card
+    let filteredCardData = [...equationsData]; // 筛选后的卡片数据
+    let currentCardIndex = 0; // 当前卡片索引
+
+    // DOM 元素
+    const equationsContainer = document.getElementById('equations-container');
+    const searchInput = document.getElementById('search-input');
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    const favoriteBtn = document.getElementById('favorites-btn');
+    const randomBtn = document.getElementById('random-btn');
+    const quizModal = document.getElementById('quiz-modal');
+    const closeQuizBtn = document.getElementById('close-quiz');
+    const nextQuizBtn = document.getElementById('next-quiz');
+    const prevQuizBtn = document.getElementById('prev-quiz');
+    const emptyState = document.getElementById('empty-state');
+    const resetFilterBtn = document.getElementById('reset-filter');
+    const totalCountEl = document.getElementById('total-count');
+    const favoriteCountEl = document.getElementById('favorite-count');
+    
+    // 卡片模式相关元素
+    const listContainer = document.getElementById('list-container');
+    const cardContainer = document.getElementById('card-container');
+    const listModeBtn = document.getElementById('list-mode-btn');
+    const cardModeBtn = document.getElementById('card-mode-btn');
+    const mobileModeBtn = document.getElementById('mobile-mode-btn');
+    const categoryBar = document.getElementById('category-bar');
+    const flipCard = document.getElementById('main-flip-card');
+    const prevCardBtn = document.getElementById('prev-card');
+    const nextCardBtn = document.getElementById('next-card');
+    const shuffleCardBtn = document.getElementById('shuffle-card');
+    const currentCardIndexEl = document.getElementById('current-card-index');
+    const totalCardCountEl = document.getElementById('total-card-count');
+    const cardFrontTitle = document.getElementById('card-front-title');
+    const cardFrontDifficulty = document.getElementById('card-front-difficulty');
+    const cardBackTitle = document.getElementById('card-back-title');
+    const cardEquation = document.getElementById('card-equation');
+    const cardDescription = document.getElementById('card-description');
+    const cardFavoriteBtn = document.getElementById('card-favorite-btn');
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      renderEquations();
+      updateCounts();
+      initEventListeners();
+      renderQuizEquations();
+      initCardMode();
+      
+      // 渲染KaTeX公式
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true }
+        ],
+        trust: true
+      });
+    });
+
+    // 初始化卡片模式
+    function initCardMode() {
+      updateFilteredCardData();
+      updateCardDisplay();
+      updateCardNavigationButtons();
+    }
+
+    // 更新筛选后的卡片数据
+    function updateFilteredCardData() {
+      filteredCardData = equationsData.filter(equation => {
+        const matchesCategory = currentCategory === "all" || equation.type.includes(currentCategory);
+        const matchesSearch = searchQuery === "" || 
+          equation.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          equation.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFavorite = favoriteBtn.classList.contains('active') ? 
+          favoriteEquations.has(equation.id) : true;
+        
+        return matchesCategory && matchesSearch && matchesFavorite;
+      });
+      
+      // 更新卡片总数
+      totalCardCountEl.textContent = filteredCardData.length;
+      
+      // 如果没有数据，显示空状态（卡片模式下）
+      if (filteredCardData.length === 0) {
+        cardContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+      } else {
+        cardContainer.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        
+        // 确保当前索引在有效范围内
+        if (currentCardIndex >= filteredCardData.length) {
+          currentCardIndex = filteredCardData.length - 1;
+        } else if (currentCardIndex < 0) {
+          currentCardIndex = 0;
+        }
+      }
+    }
+
+    // 更新卡片显示内容
+    function updateCardDisplay() {
+      if (filteredCardData.length === 0) return;
+      
+      const currentCard = filteredCardData[currentCardIndex];
+      const isFavorite = favoriteEquations.has(currentCard.id);
+      
+      // 更新正面内容
+      cardFrontTitle.textContent = currentCard.name;
+      
+      // 更新难度标签
+      let difficultyClass = '';
+      if (currentCard.difficulty === '简单') difficultyClass = 'bg-green-100 text-green-700';
+      else if (currentCard.difficulty === '中等') difficultyClass = 'bg-yellow-100 text-yellow-700';
+      else difficultyClass = 'bg-red-100 text-red-700';
+      
+      cardFrontDifficulty.innerHTML = `<span class="px-3 py-1 rounded-full text-sm bg-white/20">${currentCard.difficulty}</span>`;
+      
+      // 更新反面内容
+      cardBackTitle.textContent = currentCard.name;
+      cardDescription.textContent = currentCard.description;
+      
+      // 更新方程式
+      cardEquation.innerHTML = `$${currentCard.equation}$`;
+      renderMathInElement(cardEquation, {
+        delimiters: [
+          { left: "$", right: "$", display: false }
+        ],
+        trust: true
+      });
+      
+      // 更新收藏按钮状态
+      if (isFavorite) {
+        cardFavoriteBtn.classList.add('active');
+        cardFavoriteBtn.innerHTML = '<i class="fa fa-star text-xl text-FF4D4F"></i>';
+      } else {
+        cardFavoriteBtn.classList.remove('active');
+        cardFavoriteBtn.innerHTML = '<i class="fa fa-star-o text-xl"></i>';
+      }
+      
+      // 更新当前卡片索引
+      currentCardIndexEl.textContent = currentCardIndex + 1;
+      
+      // 重置卡片为正面朝上
+      flipCard.classList.remove('flipped');
+    }
+
+    // 更新卡片导航按钮状态
+    function updateCardNavigationButtons() {
+      prevCardBtn.disabled = currentCardIndex === 0;
+      nextCardBtn.disabled = currentCardIndex === filteredCardData.length - 1;
+    }
+
+    // 渲染列表模式方程式卡片
+    function renderEquations() {
+      equationsContainer.innerHTML = '';
+      
+      // 筛选方程式
+      const filteredEquations = equationsData.filter(equation => {
+        const matchesCategory = currentCategory === "all" || equation.type.includes(currentCategory);
+        const matchesSearch = searchQuery === "" || 
+          equation.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          equation.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFavorite = favoriteBtn.classList.contains('active') ? 
+          favoriteEquations.has(equation.id) : true;
+        
+        return matchesCategory && matchesSearch && matchesFavorite;
+      });
+      
+      // 显示空状态或方程式卡片
+      if (filteredEquations.length === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+        equationsContainer.classList.add('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      equationsContainer.classList.remove('hidden');
+      
+      // 创建方程式卡片
+      filteredEquations.forEach(equation => {
+        const isFavorite = favoriteEquations.has(equation.id);
+        
+        const card = document.createElement('div');
+        card.className = 'equation-card bg-white rounded-xl shadow-card hover:shadow-card-hover p-5 border border-gray-100';
+        card.dataset.id = equation.id;
+        
+        // 难度标签样式
+        let difficultyClass = '';
+        if (equation.difficulty === '简单') difficultyClass = 'bg-green-100 text-green-700';
+        else if (equation.difficulty === '中等') difficultyClass = 'bg-yellow-100 text-yellow-700';
+        else difficultyClass = 'bg-red-100 text-red-700';
+        
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="font-semibold text-lg">${equation.name}</h3>
+            <button class="收藏-btn ${isFavorite ? 'active' : ''} text-gray-400 hover:text-gray-600 transition-custom" data-id="${equation.id}">
+              <i class="fa ${isFavorite ? 'fa-star' : 'fa-star-o'} text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="bg-neutral rounded-lg p-4 mb-4 equation-content">
+            $${equation.equation}$
+          </div>
+          
+          <p class="text-gray-600 text-sm mb-4 line-clamp-2">${equation.description}</p>
+          
+          <div class="flex flex-wrap gap-2">
+            ${equation.type.map(type => {
+              const typeNames = {
+                'alkane': '烷烃',
+                'ethylene': '乙烯',
+                'benzene': '苯类',
+                'addition': '加成反应',
+                'substitution': '取代反应',
+                'oxidation': '氧化反应',
+                'reduction': '还原反应',
+                'combustion': '燃烧反应',
+                'decomposition': '分解反应',
+                'cracking': '裂化反应',
+                'polymerization': '聚合反应',
+                'nitration': '硝化反应',
+                'sulfonation': '磺化反应'
+              };
+              return `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${typeNames[type] || type}</span>`;
+            }).join('')}
+            <span class="px-2 py-1 ${difficultyClass} text-xs rounded-full">${equation.difficulty}</span>
+          </div>
+        `;
+        
+        equationsContainer.appendChild(card);
+        
+        // 渲染当前卡片中的KaTeX公式
+        renderMathInElement(card, {
+          delimiters: [
+            { left: "$", right: "$", display: false }
+          ],
+          trust: true
+        });
+      });
+      
+      // 为收藏按钮添加事件监听
+      document.querySelectorAll('.收藏-btn').forEach(btn => {
+        btn.addEventListener('click', toggleFavorite);
+      });
+    }
+
+    // 切换收藏状态
+    function toggleFavorite(e) {
+      const equationId = parseInt(e.currentTarget.dataset.id);
+      const icon = e.currentTarget.querySelector('i');
+      
+      if (favoriteEquations.has(equationId)) {
+        favoriteEquations.delete(equationId);
+        e.currentTarget.classList.remove('active');
+        icon.classList.remove('fa-star');
+        icon.classList.add('fa-star-o');
+        icon.style.color = '';
+      } else {
+        favoriteEquations.add(equationId);
+        e.currentTarget.classList.add('active');
+        icon.classList.remove('fa-star-o');
+        icon.classList.add('fa-star');
+        icon.style.color = '#FF4D4F';
+      }
+      
+      updateCounts();
+      
+      // 如果当前在收藏页面或卡片模式，更新显示
+      if (favoriteBtn.classList.contains('active')) {
+        if (currentMode === 'list') {
+          renderEquations();
+        } else {
+          updateFilteredCardData();
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      } else if (currentMode === 'card') {
+        // 更新当前卡片的收藏状态
+        const currentCard = filteredCardData[currentCardIndex];
+        if (currentCard.id === equationId) {
+          updateCardDisplay();
+        }
+      }
+    }
+
+    // 卡片模式收藏切换
+    function toggleCardFavorite() {
+      const currentCard = filteredCardData[currentCardIndex];
+      const equationId = currentCard.id;
+      
+      if (favoriteEquations.has(equationId)) {
+        favoriteEquations.delete(equationId);
+        cardFavoriteBtn.classList.remove('active');
+        cardFavoriteBtn.innerHTML = '<i class="fa fa-star-o text-xl"></i>';
+      } else {
+        favoriteEquations.add(equationId);
+        cardFavoriteBtn.classList.add('active');
+        cardFavoriteBtn.innerHTML = '<i class="fa fa-star text-xl text-FF4D4F"></i>';
+      }
+      
+      updateCounts();
+      
+      // 如果当前在列表模式且显示收藏，更新列表
+      if (currentMode === 'list' && favoriteBtn.classList.contains('active')) {
+        renderEquations();
+      }
+    }
+
+    // 更新统计数字
+    function updateCounts() {
+      totalCountEl.textContent = equationsData.length;
+      favoriteCountEl.textContent = favoriteEquations.size;
+    }
+
+    // 切换显示模式（列表/卡片）
+    function toggleMode(newMode) {
+      currentMode = newMode;
+      
+      if (currentMode === 'list') {
+        // 切换到列表模式
+        listContainer.classList.remove('hidden');
+        listContainer.classList.add('block');
+        cardContainer.classList.add('hidden');
+        categoryBar.classList.remove('hidden');
+        
+        // 更新按钮状态
+        listModeBtn.classList.add('active');
+        listModeBtn.classList.add('bg-primary');
+        listModeBtn.classList.add('text-white');
+        cardModeBtn.classList.remove('active');
+        cardModeBtn.classList.remove('bg-primary');
+        cardModeBtn.classList.remove('text-white');
+        mobileModeBtn.innerHTML = '<i class="fa fa-th-list"></i><span>列表</span>';
+        
+        // 重新渲染列表
+        renderEquations();
+      } else {
+        // 切换到卡片模式
+        listContainer.classList.add('hidden');
+        listContainer.classList.remove('block');
+        cardContainer.classList.remove('hidden');
+        categoryBar.classList.remove('hidden');
+        
+        // 更新按钮状态
+        cardModeBtn.classList.add('active');
+        cardModeBtn.classList.add('bg-primary');
+        cardModeBtn.classList.add('text-white');
+        listModeBtn.classList.remove('active');
+        listModeBtn.classList.remove('bg-primary');
+        listModeBtn.classList.remove('text-white');
+        mobileModeBtn.innerHTML = '<i class="fa fa-clone"></i><span>卡片</span>';
+        
+        // 初始化卡片模式
+        initCardMode();
+      }
+    }
+
+    // 初始化事件监听
+    function initEventListeners() {
+      // 搜索功能
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        
+        if (currentMode === 'list') {
+          renderEquations();
+        } else {
+          updateFilteredCardData();
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+      
+      // 分类筛选
+      categoryBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          // 更新按钮状态
+          categoryBtns.forEach(b => b.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          
+          // 设置当前分类
+          currentCategory = e.currentTarget.dataset.category;
+          
+          if (currentMode === 'list') {
+            renderEquations();
+          } else {
+            updateFilteredCardData();
+            updateCardDisplay();
+            updateCardNavigationButtons();
+          }
+        });
+      });
+      
+      // 收藏页面切换
+      favoriteBtn.addEventListener('click', () => {
+        favoriteBtn.classList.toggle('active');
+        
+        if (favoriteBtn.classList.contains('active')) {
+          favoriteBtn.innerHTML = '<i class="fa fa-star"></i><span class="hidden sm:inline"> 已收藏</span>';
+        } else {
+          favoriteBtn.innerHTML = '<i class="fa fa-star-o"></i><span class="hidden sm:inline"> 我的收藏</span>';
+        }
+        
+        if (currentMode === 'list') {
+          renderEquations();
+        } else {
+          updateFilteredCardData();
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+      
+      // 随机抽查
+      randomBtn.addEventListener('click', () => {
+        openQuizModal();
+      });
+      
+      // 关闭抽查模态框
+      closeQuizBtn.addEventListener('click', () => {
+        quizModal.classList.add('hidden');
+      });
+      
+      // 下一题
+      nextQuizBtn.addEventListener('click', () => {
+        if (currentQuizIndex < quizEquations.length - 1) {
+          currentQuizIndex++;
+          updateQuiz();
+        } else {
+          quizModal.classList.add('hidden');
+          currentQuizIndex = 0;
+        }
+      });
+      
+      // 上一题
+      prevQuizBtn.addEventListener('click', () => {
+        if (currentQuizIndex > 0) {
+          currentQuizIndex--;
+          updateQuiz();
+        }
+      });
+      
+      // 重置筛选
+      resetFilterBtn.addEventListener('click', () => {
+        searchQuery = "";
+        searchInput.value = "";
+        
+        // 重置分类按钮
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        categoryBtns[0].classList.add('active');
+        currentCategory = "all";
+        
+        // 退出收藏页面
+        if (favoriteBtn.classList.contains('active')) {
+          favoriteBtn.classList.remove('active');
+          favoriteBtn.innerHTML = '<i class="fa fa-star-o"></i><span class="hidden sm:inline"> 我的收藏</span>';
+        }
+        
+        if (currentMode === 'list') {
+          renderEquations();
+        } else {
+          updateFilteredCardData();
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+      
+      // 点击模态框外部关闭
+      quizModal.addEventListener('click', (e) => {
+        if (e.target === quizModal) {
+          quizModal.classList.add('hidden');
+          currentQuizIndex = 0;
+        }
+      });
+      
+      // 模式切换事件（桌面端）
+      listModeBtn.addEventListener('click', () => toggleMode('list'));
+      cardModeBtn.addEventListener('click', () => toggleMode('card'));
+      
+      // 模式切换事件（移动端）
+      mobileModeBtn.addEventListener('click', () => {
+        const newMode = currentMode === 'list' ? 'card' : 'list';
+        toggleMode(newMode);
+      });
+      
+      // 卡片翻转事件
+      flipCard.addEventListener('click', () => {
+        flipCard.classList.toggle('flipped');
+      });
+      
+      // 卡片模式收藏按钮事件
+      cardFavoriteBtn.addEventListener('click', toggleCardFavorite);
+      
+      // 卡片导航事件
+      prevCardBtn.addEventListener('click', () => {
+        if (currentCardIndex > 0) {
+          currentCardIndex--;
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+      
+      nextCardBtn.addEventListener('click', () => {
+        if (currentCardIndex < filteredCardData.length - 1) {
+          currentCardIndex++;
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+      
+      // 随机卡片事件
+      shuffleCardBtn.addEventListener('click', () => {
+        if (filteredCardData.length > 1) {
+          let newIndex;
+          do {
+            newIndex = Math.floor(Math.random() * filteredCardData.length);
+          } while (newIndex === currentCardIndex && filteredCardData.length > 1);
+          
+          currentCardIndex = newIndex;
+          updateCardDisplay();
+          updateCardNavigationButtons();
+        }
+      });
+    }
+
+    // 渲染抽查题目
+    function renderQuizEquations() {
+      quizEquations = [...equationsData]
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 5);
+      
+      document.getElementById('quiz-total').textContent = quizEquations.length;
+    }
+
+    // 打开抽查模态框
+    function openQuizModal() {
+      currentQuizIndex = 0;
+      updateQuiz();
+      quizModal.classList.remove('hidden');
+      quizModal.classList.add('flex');
+    }
+
+    // 更新抽查题目
+    function updateQuiz() {
+      const currentQuiz = quizEquations[currentQuizIndex];
+      
+      document.getElementById('quiz-current').textContent = currentQuizIndex + 1;
+      document.getElementById('quiz-question').textContent = `请写出${currentQuiz.name}的化学方程式`;
+      
+      const equationContainer = document.getElementById('quiz-equation');
+      equationContainer.innerHTML = `$${currentQuiz.equation}$`;
+      
+      // 渲染KaTeX公式
+      renderMathInElement(equationContainer, {
+        delimiters: [
+          { left: "$", right: "$", display: false }
+        ],
+        trust: true
+      });
+    }
+
+    // 响应式调整
+    window.addEventListener('resize', () => {
+      // 重新渲染公式以适应屏幕大小
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true }
+        ],
+        trust: true
+      });
+    });
+  </script>
+</body>
+</html>
