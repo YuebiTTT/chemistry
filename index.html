@@ -2001,6 +2001,11 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
         <p class="text-gray-500 mb-2">
           <span id="current-card-index">1</span>/<span id="total-card-count">74</span>
         </p>
+        <div class="w-full max-w-md mx-auto mt-2 mb-4">
+          <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-primary transition-all duration-300 rounded-full" style="width: 1.35%"></div>
+          </div>
+        </div>
         <h3 class="text-xl font-semibold text-primary">点击卡片翻转查看详情</h3>
         <p class="text-gray-500 mt-1">正面：方程式名称 | 反面：反应原理与方程式</p>
       </div>
@@ -2757,6 +2762,7 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
     const shuffleCardBtn = document.getElementById('shuffle-card');
     const currentCardIndexEl = document.getElementById('current-card-index');
     const totalCardCountEl = document.getElementById('total-card-count');
+    const progressBarEl = document.getElementById('progress-bar');
     const cardFrontTitle = document.getElementById('card-front-title');
     const cardFrontDifficulty = document.getElementById('card-front-difficulty');
     const cardBackTitle = document.getElementById('card-back-title');
@@ -2822,6 +2828,9 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
         } else if (currentCardIndex < 0) {
           currentCardIndex = 0;
         }
+        
+        // 更新进度条
+        updateProgressBar();
       }
     }
 
@@ -2868,14 +2877,28 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
       // 更新当前卡片索引
       currentCardIndexEl.textContent = currentCardIndex + 1;
       
+      // 更新进度条
+      updateProgressBar();
+      
       // 重置卡片为正面朝上
       flipCard.classList.remove('flipped');
+    }
+
+    // 更新进度条
+    function updateProgressBar() {
+      if (filteredCardData.length === 0) {
+        progressBarEl.style.width = '0%';
+        return;
+      }
+      const progress = ((currentCardIndex + 1) / filteredCardData.length) * 100;
+      progressBarEl.style.width = `${progress}%`;
     }
 
     // 更新卡片导航按钮状态
     function updateCardNavigationButtons() {
       prevCardBtn.disabled = currentCardIndex === 0;
       nextCardBtn.disabled = currentCardIndex === filteredCardData.length - 1;
+      updateProgressBar();
     }
 
     // 渲染列表模式方程式卡片
