@@ -97,6 +97,67 @@
       transform: rotateY(180deg);
     }
     
+    /* 卡片切换动画 */
+    .flip-card.slide-out-left {
+      animation: slideOutLeft 0.3s ease-in-out forwards;
+    }
+    
+    .flip-card.slide-in-right {
+      animation: slideInRight 0.3s ease-in-out forwards;
+    }
+    
+    .flip-card.slide-out-right {
+      animation: slideOutRight 0.3s ease-in-out forwards;
+    }
+    
+    .flip-card.slide-in-left {
+      animation: slideInLeft 0.3s ease-in-out forwards;
+    }
+    
+    @keyframes slideOutLeft {
+      0% {
+        transform: translateX(0) rotateY(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(-100%) rotateY(-30deg);
+        opacity: 0;
+      }
+    }
+    
+    @keyframes slideInRight {
+      0% {
+        transform: translateX(100%) rotateY(30deg);
+        opacity: 0;
+      }
+      100% {
+        transform: translateX(0) rotateY(0deg);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOutRight {
+      0% {
+        transform: translateX(0) rotateY(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100%) rotateY(30deg);
+        opacity: 0;
+      }
+    }
+    
+    @keyframes slideInLeft {
+      0% {
+        transform: translateX(-100%) rotateY(-30deg);
+        opacity: 0;
+      }
+      100% {
+        transform: translateX(0) rotateY(0deg);
+        opacity: 1;
+      }
+    }
+    
     .card-front, .card-back {
       position: absolute;
       width: 100%;
@@ -3245,17 +3306,43 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
       // 卡片导航事件
       prevCardBtn.addEventListener('click', () => {
         if (currentCardIndex > 0) {
-          currentCardIndex--;
-          updateCardDisplay();
-          updateCardNavigationButtons();
+          // 添加滑出动画
+          flipCard.classList.add('slide-out-right');
+          
+          // 延迟执行更新，等待动画完成
+          setTimeout(() => {
+            currentCardIndex--;
+            flipCard.classList.remove('slide-out-right');
+            flipCard.classList.add('slide-in-left');
+            updateCardDisplay();
+            updateCardNavigationButtons();
+            
+            // 动画完成后移除动画类
+            setTimeout(() => {
+              flipCard.classList.remove('slide-in-left');
+            }, 300);
+          }, 300);
         }
       });
       
       nextCardBtn.addEventListener('click', () => {
         if (currentCardIndex < filteredCardData.length - 1) {
-          currentCardIndex++;
-          updateCardDisplay();
-          updateCardNavigationButtons();
+          // 添加滑出动画
+          flipCard.classList.add('slide-out-left');
+          
+          // 延迟执行更新，等待动画完成
+          setTimeout(() => {
+            currentCardIndex++;
+            flipCard.classList.remove('slide-out-left');
+            flipCard.classList.add('slide-in-right');
+            updateCardDisplay();
+            updateCardNavigationButtons();
+            
+            // 动画完成后移除动画类
+            setTimeout(() => {
+              flipCard.classList.remove('slide-in-right');
+            }, 300);
+          }, 300);
         }
       });
       
@@ -3267,9 +3354,22 @@ m0 0v40h399900v-40z m100 194v40h399900v-40zm0 0v40h399900v-40z"></path></svg></s
             newIndex = Math.floor(Math.random() * filteredCardData.length);
           } while (newIndex === currentCardIndex && filteredCardData.length > 1);
           
-          currentCardIndex = newIndex;
-          updateCardDisplay();
-          updateCardNavigationButtons();
+          // 添加滑出动画
+          flipCard.classList.add('slide-out-left');
+          
+          // 延迟执行更新，等待动画完成
+          setTimeout(() => {
+            currentCardIndex = newIndex;
+            flipCard.classList.remove('slide-out-left');
+            flipCard.classList.add('slide-in-right');
+            updateCardDisplay();
+            updateCardNavigationButtons();
+            
+            // 动画完成后移除动画类
+            setTimeout(() => {
+              flipCard.classList.remove('slide-in-right');
+            }, 300);
+          }, 300);
         }
       });
     }
